@@ -1,0 +1,83 @@
+//@version=5
+strategy("MACD多空策略", shorttitle="KAI多空策略", overlay=true)
+//-----------------------------------------------------------------------------------------------
+macdFastLength = input(13, title="MACD快速EMA周期")//6
+macdSlowLength = input(34, title="MACD慢速EMA周期")//52
+macdSignalSmoothing = input(9, title="MACD信號線EMA周期")//9
+atrLength = input(13, title="ATR周期")//28
+rsiLength = input(14, title="RSI周期")
+
+//atr_multiplier = input.float(5.75, title="空頭ATR倍數", minval=0, step=0.1) // ATR倍數
+//TPatr_multiplier = input.float(11.6, title="多頭ATR倍數", minval=0, step=0.1) 
+cciLength = input(20, title="CCI周期") 
+//-----------------------------------------------------------------------------------------------
+
+[macdLine, signalLine, macdHist] = ta.macd(close, macdFastLength, macdSlowLength, macdSignalSmoothing)
+atr = ta.atr(atrLength)
+rsi = ta.rsi(close, rsiLength)
+cci = ta.cci(close, cciLength)
+
+// 做多規則
+long_condition = false
+if (macdHist[1] > macdHist[2] and macdHist[2] > macdHist[3] and ta.crossover(macdLine, signalLine))
+    // 添加背離條件
+    if (low[1] < low and rsi[1] > rsi)
+        long_condition := true
+
+// 做空規則
+short_condition = false
+if (macdHist[1] < macdHist[2] and macdHist[2] < macdHist[3] and ta.crossunder(macdLine, signalLine))
+    // 添加背離條件
+    if (high[1] > high and rsi[1] < rsi and cci < 0)
+        short_condition := true
+
+//-----------------------------------------------------------------------------------------------
+// 入場價格
+entry_price = close
+
+// 計算多頭止盈價格
+// longstopLoss = math.round(entry_price - (atr * atr_multiplier), 2)
+// longtakeprofit = math.round(entry_price + (atr * TPatr_multiplier), 2)
+
+//計算空頭止盈價格
+// shortstopLoss = math.round(entry_price + (atr * atr_multiplier), 2)
+// shorttakeprofit = math.round(entry_price - (atr * TPatr_multiplier), 2)
+
+// 計算止盈%
+takeProfitPercentage = input.float(6.3, title="止盈趴數", minval=0, step=0.1)//6.3-2.2 // 6.3-1.2
+Preclongtakeprofit = math.round((entry_price * (1 + (takeProfitPercentage / 100))), 2)
+Precshorttakeprofit = math.round((entry_price * (1 - (takeProfitPercentage / 100))), 2)
+
+// 計算止損%
+stopLossPercentage = input.float(3.4, title="止損趴數", minval=0, step=0.1)
+PreclongStopLoss = math.round((entry_price * (1 - (stopLossPercentage / 100))), 2)
+PrecshortStopLoss = math.round((entry_price * (1 + (stopLossPercentage / 100))), 2)
+
+//-----------------------------------------------------------------------------------------------
+trade_size = 150//交易金額
+leverage = 15//槓桿
+qty_trade_size = (trade_size * leverage)
+
+if (long_condition)
+    strategy.close("Short Close")
+    strategy.entry("Long", strategy.long, qty = (qty_trade_size / entry_price))
+    strategy.exit("Long Exit", from_entry="Long", limit = Preclongtakeprofit, stop = PreclongStopLoss)
+    
+//做空入場
+if (short_condition)
+    strategy.exit("Long Exit", from_entry="Long", limit = Preclongtakeprofit, stop = PreclongStopLoss)
+    strategy.entry("Short", strategy.short, qty = (qty_trade_size / entry_price))
+    strategy.exit("Short Exit", from_entry="Short", limit = Precshorttakeprofit, stop = PrecshortStopLoss)
+
+//-----------------------------------------------------------------------------------------------
+// 計算EMA
+ema21 = ta.ema(close, 21)
+ema55 = ta.ema(close, 55)
+ema100 = ta.ema(close, 100)
+ema200 = ta.ema(close, 200)
+
+// 畫出EMA線
+plot(ema21, color=color.yellow, title="EMA 21")
+plot(ema55, color=color.orange, title="EMA 55")
+plot(ema100, color=color.navy, title="EMA 100")
+plot(ema200, color=color.blue, title="EMA 200")

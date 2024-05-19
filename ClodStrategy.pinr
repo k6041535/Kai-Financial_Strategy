@@ -1,0 +1,41 @@
+//@version=5
+strategy("Solar Winds, RSI, and Ichimoku Cloud Strategy", overlay=true)
+
+// Solar Winds Indicator
+solarWindsLength = 30
+solarWinds = ta.sma(close, solarWindsLength) > 0 ? 1 : 0
+
+// RSI Indicator
+rsiLength = 14
+rsi = ta.rsi(close, rsiLength)
+longRSICondition = rsi > 65 and rsi[1] <= 65
+shortRSICondition = rsi < 35 and rsi[1] >= 35
+
+// Ichimoku Cloud Indicator
+kijunSenLength = 26
+senkouSpanLength = 52
+tenkanSen = ta.sma(close, 9)
+kijunSen = ta.sma(close, kijunSenLength)
+senkouA = ta.sma((tenkanSen + kijunSen) / 2, senkouSpanLength)
+senkouB = ta.sma(close, senkouSpanLength)
+
+// Trading conditions
+longCondition = solarWinds == 1 and longRSICondition and close > kijunSen
+shortCondition = solarWinds == 0 and shortRSICondition and close < kijunSen
+
+// Entry and exit
+if (longCondition)
+    strategy.entry("Long", strategy.long)
+    strategy.exit("Long Exit", "Long", stop=low[1], limit=close + (close - low[1]))
+if (shortCondition)
+    strategy.entry("Short", strategy.short)
+    strategy.exit("Short Exit", "Short", stop=high[1], limit=close - (high[1] - close))
+
+// Plotting
+plotshape(series=solarWinds, title="Solar Winds", location=location.belowbar, color=color.blue, style=shape.triangleup, size=size.small)
+hline(65, "Upper RSI", color=color.red, linestyle=hline.style_dashed)
+hline(35, "Lower RSI", color=color.green, linestyle=hline.style_dashed)
+plot(kijunSen, color=color.blue, linewidth=2, title="Kijun Sen")
+plot(senkouA, color=color.aqua, linewidth=1, title="Senkou Span A")
+plot(senkouB, color=color.purple, linewidth=1, title="Senkou Span B")
+
